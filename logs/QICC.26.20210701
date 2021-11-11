@@ -1,0 +1,45 @@
+Image Quality Control - Metrology Verification
+Operator:ASM    Machine:8477    Release:8.9.0    Date:06/30/2021  Time:14:35
+
+
+Results of the Correction Measurements
+
+Type of Correction Measurement : System Correction     
+Update mode                    : Measure             
+
+Lens Pressure           [mbar] :  1015.4
+Lens Temperature        [degC] :    22.0
+Illumination Mode              : Conventional 
+Numerical Aperture             :     0.40
+Sigma Outer                    :     0.750
+Illumination mode name         : conventional     Version : 1.0.0   
+
+Global Alignments per Measurement :    1
+Cycles per Measurement            :    1
+Measurements per Correction       :    3
+
+Correction Measurements done   :     1   valid :     1   requested :     1
+
+
+
+Drift Data
+
++---------------------------+----------+--------------------+-----+----------+
+|                           | IQ drift |     Correction     |     | IQ drift |
++---------------------------+----------+----------+---------+-----+----------+
+|                           | Start MC |   Mean   | 3StdDev |Valid|  New MC  |
++===========================+==========+==========+=========+=====+==========+
+| Magnification       [ppm] |    -1.07 |    -1.62 |    0.73 |  Y  |    -1.07 |
+| Rotation           [urad] |     0.92 |    -0.28 |    0.24 |  Y  |     0.92 |
+| Translation X        [nm] |     1.08 |     1.65 |    6.81 |  Y  |     1.08 |
+| Translation Y        [nm] |    -8.92 |    -1.92 |    2.57 |  Y  |    -8.92 |
+| Image Tilt Rx      [urad] |     3.24 |     0.24 |    0.49 |  Y  |     3.24 |
+| Image Tilt Ry      [urad] |     0.00 |     2.21 |    0.58 |  Y  |     0.00 |
+| Focus                [nm] |   147.71 |    25.74 |   11.36 |  Y  |   147.71 |
+| StoLe Tilt Rx      [urad] |    -1.26 |     0.84 |    0.42 |  Y  |    -1.26 |
+| StoLe Tilt Ry      [urad] |    -3.06 |    -0.25 |    2.73 |  Y  |    -3.06 |
+| Actuator Tilt Rx   [urad] |    -0.08 |     0.36 |    0.14 |  Y  |    -0.08 |
+| Actuator Tilt Ry   [urad] |    -1.67 |     2.76 |    0.14 |  Y  |    -1.67 |
++---------------------------+----------+----------+---------+-----+----------+
+
+
