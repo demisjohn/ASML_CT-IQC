@@ -20,7 +20,7 @@ import datetime
 #MinDate = "2021-06-30"      # Format: "2021-07-22" for July 22nd, 2021
 #MinTime = (0,0,0)      # Format: (16,30,0) for 16:30 (aka 4:30pm)
 #mindate = datetime.datetime.combine( datetime.date.fromisoformat( MinDate ) , datetime.time( *MinTime ) )
-mindate = datetime.datetime.now() - datetime.timedelta( days = 45 )
+mindate = datetime.datetime.now() - datetime.timedelta( days = 14 )  # plot data in the last 45 days, for example
 mindate = datetime.datetime.combine( mindate.date() , datetime.time( 0,0,0 ) )  # set to midnight
 SaveFig = False;    # save the plot to a file?
 WS_ymin = None; #21.8      # set to None for auto
@@ -56,9 +56,9 @@ DataGrove_dir="/Users/demis/Documents/Characterizations, Tools, Equipment, Exper
 
 print('Running...')
 
-import ASML_CT
-import datetime
-import glob
+import ASML_CT  # Demis' custom ASML_CT analysis module, in ASML_CT.py
+import datetime # for date + time specification
+import glob     # for grabbing all filenames/paths in a directory.
 
 
 folder = DataGrove_dir
@@ -79,10 +79,11 @@ for i,f in enumerate(IQCFiles):
 #print("IQCFIleZ", IQCFileZ )
 
 
+ASML_CT.unset_DEBUG() # Turn off debugging output.  Use `set_DEBUG()` to enable.
+ct = ASML_CT.ASML_CT( TCFiles )   # analyze the files, return object `ct` containing the data.
+iqcdata = ct.add_IQC_files( IQCFileZ )  # add the ICQ files as well (different file format)
+ct.iqc_analyze()    # analyze the IQC data files - could probably auto-call this func by the above one.
 
-ct = ASML_CT.ASML_CT( TCFiles )   # analyze the files
-iqcdata = ct.add_IQC_files( IQCFileZ )
-ct.iqc_analyze()
 
 
 

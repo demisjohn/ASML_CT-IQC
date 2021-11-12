@@ -49,19 +49,23 @@ import matplotlib.dates as mdates #MatPlotLib date representation
 ####################################################
 
 
-# show debugging outpuit? (Default setting)
-asml_DEBUG=True
+# show debugging output? (Default setting)
+global asml_DEBUG
+asml_DEBUG=False
 
 def DEBUG():
     """ Return DEBUG boolean variable."""
+    global asml_DEBUG
     return asml_DEBUG
 
 def set_DEBUG():
     """ Turn on Debugging output. """
+    global asml_DEBUG
     asml_DEBUG = True
 
 def unset_DEBUG():
     """ Turn off Debugging output."""
+    global asml_DEBUG
     asml_DEBUG = False
     
 ####################################################
@@ -136,14 +140,18 @@ class ASML_CT:
                         if line.strip() == "Initialize":
                             f.readline() # the machine number - discard
                             line = f.readline()
+                            FullLine = line  # store for debugging only
                         # Get the date; date format:
                         # TUE MAR 09 13:08:26 2021
                         line = line[4:-1]   # strip the 4 character day of week
                         #print("Date: `%s`" % line);
-                        dateobj = datetime.datetime.strptime( line, '%b %d %H:%M:%S %Y')
+                        try:
+                            dateobj = datetime.datetime.strptime( line, '%b %d %H:%M:%S %Y')
+                        except ValueError:
+                            print("**>> Failed DateTime parsing on File: `%s`\n"%curfile, "FullLine read was:\n\t%s\n"%FullLine, "Parsed Line was:\n\t%s"%line)
                         CurDate = dateobj.date()
                         self.Dates.append(CurDate)
-                        if DEBUG(): print("\t Found date+time:", dateobj, "\t Adding Date: ", self.Dates[-1])
+                        if DEBUG(): print("\t Found CT date+time:", dateobj, "\t Adding Date: ", self.Dates[-1])
                         for i in range(3):
                             line=f.readline()    # skip next three lines
                             #print("skipping line:", line)
