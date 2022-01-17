@@ -113,6 +113,7 @@ class ASML_CT:
         ## Headers:
         # time     Tlens  Twater Tair   Tws    Ttcu   Ftcu   Tact   Pairin Pgas    Plens  Flens  Cont   Hum s   
         self.columns=["Tlens",  "Twater", "Tair",   "Tws",    "Ttcu",   "Ftcu",   "Tact",   "Pairin", "Pgas",    "Plens",  "Flens", "Cont", "Hum"]
+        self.units = ["°C",     "°C",     "°C",     "°C",     "°C",     "l/min",  "°C",   "Pascal", "bar x 10^5","bar x 10^5","l/hr", "",   "%"]
         ## Data:
         # 00:01:55 22.007 21.999 18.849 22.023 22.080 42.87  22.070 1067   796026  101985 6.16   off    0  
         
@@ -120,7 +121,7 @@ class ASML_CT:
         
         Data = []
         #self.Dates = []
-        CurDate = datetime.date(2020,1,1)
+        CurDate = datetime.date(2020,1,1) # initialize variable with arbitrary date/time
         CurTime = datetime.time(0,0,0)
         for curfile in self.files:
             if DEBUG(): print("opening file:", curfile)
@@ -189,7 +190,7 @@ class ASML_CT:
     #end analyze()
     
     
-    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
+    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, PlotTemperature=True, PlotPressure=False, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
         """
         Plot the temperature data. If IQC data has been analyzed, plot that as well.
         Multiple MatPLotLib Axes objects are plotted as so:
@@ -211,6 +212,19 @@ class ASML_CT:
                 mindate = datetime.datetime.combine( datetime.date.fromisoformat('2021-03-11') , datetime.time(0,0,0) )
                 MyCTobj.plot(   data=ct.df[  ct.df['DateTime'] >  mindate  ]    )
             
+            
+        PlotTemperature : {True|False}, optional
+            Add a plot for Temperature data?  Defaults to True.
+            Plots "Incoming Air", "Wafer Stage Air" and "Lens" Temperatures.
+        
+        PlotLensPressure : {True|False}, optional
+            Add a plot for Pressure data?  Defaults to False.
+            Plots "Lens Presure" on it's own axis.
+        
+        PlotLensPressure : {True|False}, optional
+            Add a plot for Pressure data?  Defaults to False.
+            Plots "Lens Presure" on it's own axis.
+        
         WS_ymin : float, defaults to None
             Y minimum for Wafer Stage axis, Default of `None` means automatic.  21.8      # set to None for auto
         
@@ -236,19 +250,33 @@ class ASML_CT:
             except AttributeError:
                 if DEBUG(): print("No IQC data")
             #end try
-        #end if(IQCdata)
-            
-        
-        if not iqcplot:
-            fig, [ax1, ax2] = plt.subplots(nrows=2, ncols=1, sharex=True, **figargs)
         else:
+            iqcdata = IQCdata
+            icqplot=True
+        #end if(IQCdata)
+        
+        
+        # ax1+ax2 is temperature data, ax3 is IQC data, ax4 is Pressure data
+        if (not iqcplot) and (not Pressure):
+            fig, [ax1, ax2] = plt.subplots(nrows=2, ncols=1, sharex=True, **figargs)
+        elif (iqcplot) and (not Pressure):
             fig, [ax2, ax1, ax3] = plt.subplots(nrows=3, ncols=1, sharex=True, **figargs)
-        # ax1 is temperature data, ax2 is IQC data
+        elif (not iqcplot) and (Pressure):
+            fig, [ax2, ax1, ax4] = plt.subplots(nrows=3, ncols=1, sharex=True, **figargs)
+        elif (iqcplot) and (Pressure):
+            fig, [ax2, ax1, ax3, ax4, ax5, ax6] = plt.subplots(nrows=6, ncols=1, sharex=True, **figargs)
+        #end if(which plots)
+        
+        
+        # Ax1: Incoming Air
         ax1.plot(   data["DateTime"], data["Tlens"], label="Lens"   , **ax1args) 
-        ax1.plot(   data["DateTime"], data["Tws"], label="WaferStage"     , **ax2args) 
+        ax1.plot(   data["DateTime"], data["Tws"], label="WaferStage Air"     , **ax2args) 
         
         
         # Format Plots:
+            
+        uDates = np.unique(   [ x.date() for x in data["DateTime"] ]   )
+        
         if WS_ymin:
             ymin = WS_ymin
         else:
@@ -262,7 +290,7 @@ class ASML_CT:
         #end if(WS_ymax)
         
         ax1.set_ylim(ymin, ymax)
-        ax1.set_xticks(self.Dates, minor=True)
+        ax1.set_xticks(uDates, minor=True)
         ax1.xaxis.grid(True, which='major')
         ax1.xaxis.grid(True, which='minor')
         #ax1.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1] )
@@ -270,16 +298,18 @@ class ASML_CT:
         ax1.legend()
         ax1.set_ylabel("°C")
         
+        # Ax2: WS + Lens
         ax2.plot(   data["DateTime"], data["Tair"], label="Incoming Air", **ax3args   )
-        ax2.set_xticks(self.Dates, minor=True)
+        ax2.set_xticks(uDates, minor=True)
         ax2.xaxis.grid(True, which='major')
         ax2.xaxis.grid(True, which='minor')
         #ax2.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax2.get_ylim()[0], ymax=ax2.get_ylim()[1] )
         ax2.legend()
         ax2.set_ylabel("°C")
         
+        bottom_axis = ax2
         
-        
+        # Ax3: IQC Focus
         if iqcplot:
             # restrict IQC data to the date ranges  in Temperature data.
             tempmin, tempmax = data.DateTime.min() , data.DateTime.max() + datetime.timedelta(hours=6) # add 6 hours, to ensure latest IQC run is included (since TC data is intermittent).
@@ -302,18 +332,45 @@ class ASML_CT:
             ax3.add_artist(   plt.Rectangle( (start,IQClimits[0]), rectwidth, (IQClimits[1]-IQClimits[0]), alpha=0.1, zorder=1, color="green")   )
 
             
-            ax3.set_xticks(self.Dates, minor=True)
+            ax3.set_xticks(uDates, minor=True)
             ax3.xaxis.grid(True, which='major')
             ax3.xaxis.grid(True, which='minor')
             #ax3.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax3.get_ylim()[0], ymax=ax3.get_ylim()[1] )
             ax3.legend()
             ax3.set_ylabel("Focus Correction (nm)")
             
-            ax = ax3
-        else:
-            ax = ax2
+            bottom_axis = ax3
         
-        for tl in ax.get_xticklabels():
+        
+        # Ax4: Pressure data
+        if Pressure:
+            if DEBUG(): print("--> Pressure Plot")
+            ax4.plot(   data["DateTime"], np.array(data["Plens"])/1e5, label="Lens Pressure", **ax3args   )
+            ax4.set_xticks(uDates, minor=True)
+            ax4.xaxis.grid(True, which='major')
+            ax4.xaxis.grid(True, which='minor')
+            ax4.legend()
+            ax4.set_ylabel("Bar")
+            
+            ax5.plot(   data["DateTime"], np.array(data["Pairin"]), label="Incoming Air Pressure", **ax3args   )
+            ax5.set_xticks(uDates, minor=True)
+            ax5.xaxis.grid(True, which='major')
+            ax5.xaxis.grid(True, which='minor')
+            ax5.legend()
+            ax5.set_ylabel("Pascal")
+            
+            ax6.plot(   data["DateTime"], np.array(data["Pgas"])/1e5, label="Supply Gas", **ax3args   )
+            ax6.set_xticks(uDates, minor=True)
+            ax6.xaxis.grid(True, which='major')
+            ax6.xaxis.grid(True, which='minor')
+            ax6.legend()
+            ax6.set_ylabel("Bar")
+            
+            bottom_axis = ax6
+        #end if(Pressure)
+            
+        
+        for tl in bottom_axis.get_xticklabels():
             #print(dir(tl))
             tl.set_rotation(-90)
         
