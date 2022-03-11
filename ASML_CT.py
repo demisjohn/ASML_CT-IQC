@@ -190,7 +190,7 @@ class ASML_CT:
     #end analyze()
     
     
-    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, PlotTemperature=True, PlotPressure=False, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
+    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, PlotTemperature=True, PlotPressure=False, PlotSupplyGas=False, PlotTCU=False, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
         """
         Plot the temperature data. If IQC data has been analyzed, plot that as well.
         Multiple MatPLotLib Axes objects are plotted as so:
@@ -225,6 +225,12 @@ class ASML_CT:
             Add a plot for Pressure data?  Defaults to False.
             Plots "Lens Presure" on it's own axis.
         
+        PlotSupplyGas : {True|False}, defualts to False
+            If plotting presure, also plot supply gas?
+        
+        PlotTCU : {True|False}, defaults to False
+            Add a plot of TCU temp?
+        
         WS_ymin : float, defaults to None
             Y minimum for Wafer Stage axis, Default of `None` means automatic.  21.8      # set to None for auto
         
@@ -257,13 +263,15 @@ class ASML_CT:
         
         
         # ax1+ax2 is temperature data, ax3 is IQC data, ax4 is Pressure data
-        if (not iqcplot) and (not Pressure):
+        if (not iqcplot) and (not PlotPressure):
             fig, [ax1, ax2] = plt.subplots(nrows=2, ncols=1, sharex=True, **figargs)
-        elif (iqcplot) and (not Pressure):
+        elif (iqcplot) and (not PlotPressure):
             fig, [ax2, ax1, ax3] = plt.subplots(nrows=3, ncols=1, sharex=True, **figargs)
-        elif (not iqcplot) and (Pressure):
+        elif (not iqcplot) and (PlotPressure):
             fig, [ax2, ax1, ax4] = plt.subplots(nrows=3, ncols=1, sharex=True, **figargs)
-        elif (iqcplot) and (Pressure):
+        elif (iqcplot) and (PlotPressure) and not PlotSupplyGas:
+            fig, [ax2, ax1, ax3, ax4, ax5] = plt.subplots(nrows=5, ncols=1, sharex=True, **figargs)
+        elif (iqcplot) and (PlotPressure) and PlotSupplyGas:
             fig, [ax2, ax1, ax3, ax4, ax5, ax6] = plt.subplots(nrows=6, ncols=1, sharex=True, **figargs)
         #end if(which plots)
         
@@ -271,6 +279,7 @@ class ASML_CT:
         # Ax1: Incoming Air
         ax1.plot(   data["DateTime"], data["Tlens"], label="Lens"   , **ax1args) 
         ax1.plot(   data["DateTime"], data["Tws"], label="WaferStage Air"     , **ax2args) 
+        if PlotTCU: ax1.plot(   data["DateTime"], data["Ttcu"], label="TCU Temp."     , **ax2args) 
         
         
         # Format Plots:
@@ -343,7 +352,7 @@ class ASML_CT:
         
         
         # Ax4: Pressure data
-        if Pressure:
+        if PlotPressure:
             if DEBUG(): print("--> Pressure Plot")
             ax4.plot(   data["DateTime"], np.array(data["Plens"])/1e5, label="Lens Pressure", **ax3args   )
             ax4.set_xticks(uDates, minor=True)
@@ -359,14 +368,15 @@ class ASML_CT:
             ax5.legend()
             ax5.set_ylabel("Pascal")
             
-            ax6.plot(   data["DateTime"], np.array(data["Pgas"])/1e5, label="Supply Gas", **ax3args   )
-            ax6.set_xticks(uDates, minor=True)
-            ax6.xaxis.grid(True, which='major')
-            ax6.xaxis.grid(True, which='minor')
-            ax6.legend()
-            ax6.set_ylabel("Bar")
-            
-            bottom_axis = ax6
+            if PlotSupplyGas:
+                ax6.plot(   data["DateTime"], np.array(data["Pgas"])/1e5, label="Supply Gas", **ax3args   )
+                ax6.set_xticks(uDates, minor=True)
+                ax6.xaxis.grid(True, which='major')
+                ax6.xaxis.grid(True, which='minor')
+                ax6.legend()
+                ax6.set_ylabel("Bar")
+                
+                bottom_axis = ax6
         #end if(Pressure)
             
         
@@ -517,6 +527,46 @@ class ASML_CT:
         self.iqcdata = df
         return self.iqcdata
     #end add_IQC_dir()
+    
+    def export_data(self, outfile='', Excel=True, IQCdata=False, CSV=False):
+        '''Export all data in the class to a comma-delimited text file, by defualt sorted by date/time.
+        
+        outfile : string,
+            String of path/filename to output to.  File extension ".csv" will be appended.
+            If left empty, then a current date/time timestamp will be used.
+        
+        Excel: {True|False}, defaults to True
+            Output an Excel file?
+        
+        CSV : {True|False}, defaults to False
+            Output a CSV file?
+        
+        IQCdata : {True|False}, False by default
+            Also export IQC data?  Will generate a separate *.iqcdata text file.
+        
+        '''
+        
+        if IQCdata: raise NotImplementedError("IQC Data export not yet implemented")
+        
+        if outfile == '':
+            '''If no output filename was given, use timestamp'''
+            import datetime
+            outfile = "ASML CT Data " + datetime.datetime.now().strftime('%Y-%m-%d_%H.%M.%S')
+        
+        
+        if (not CSV) and (not Excel): raise ValueError("No output specified. Set either CSV or Excel argument to True.")
+        if CSV:
+            f = outfile+".csv"
+            self.data.to_csv( f )
+            print( "CSV File saved to: `%s`"%(f) )
+        if Excel:
+            f = outfile+".xlsx"
+            self.data.to_excel( f )
+            print( "Excel File saved to: `%s`"%(f) )
+        #end if(CSV/Excel)
+            
+        
+    #end export_data()
     
     # function aliases:
     IQC = add_IQC_dir
