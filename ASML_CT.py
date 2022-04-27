@@ -190,7 +190,7 @@ class ASML_CT:
     #end analyze()
     
     
-    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, PlotTemperature=True, PlotPressure=False, PlotSupplyGas=False, PlotTCU=False, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
+    def plot(  self, SaveFig=False, prefix="", data=None, IQCdata=None, PlotTemperature=True, PlotPressure=False, PlotSupplyGas=False, PlotTCU=False, PlotFocCorrection=True, PlotFocMC=False, WS_ymin=None, WS_ymax=None, ax1args=dict(), ax2args=dict(), ax3args=dict(),  figargs=dict()  ):
         """
         Plot the temperature data. If IQC data has been analyzed, plot that as well.
         Multiple MatPLotLib Axes objects are plotted as so:
@@ -231,6 +231,12 @@ class ASML_CT:
         PlotTCU : {True|False}, defaults to False
             Add a plot of TCU temp?
         
+        PlotFocMC : {True|False}, defaults to False
+            Include absolute value of system Focus machine constant on IQC plot.
+        
+        PlotFocCorrection : {True|False}, defaults to False
+            Include IQC Mean Focus Correction on IQC plot.
+        
         WS_ymin : float, defaults to None
             Y minimum for Wafer Stage axis, Default of `None` means automatic.  21.8      # set to None for auto
         
@@ -246,6 +252,10 @@ class ASML_CT:
             
 
         """
+        # settings:
+        LegendFontSize = 8
+        
+        
         if isinstance(data, type(None)): data = self.data
         
         iqcplot = False
@@ -283,7 +293,6 @@ class ASML_CT:
         
         
         # Format Plots:
-            
         uDates = np.unique(   [ x.date() for x in data["DateTime"] ]   )
         
         if WS_ymin:
@@ -304,7 +313,7 @@ class ASML_CT:
         ax1.xaxis.grid(True, which='minor')
         #ax1.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1] )
         #if DEBUG(): print( "Ax1: Ylims: ", ax1.get_ylim()[0], ax1.get_ylim()[1] )
-        ax1.legend()
+        ax1.legend(fontsize=LegendFontSize)
         ax1.set_ylabel("°C")
         
         # Ax2: WS + Lens
@@ -313,20 +322,48 @@ class ASML_CT:
         ax2.xaxis.grid(True, which='major')
         ax2.xaxis.grid(True, which='minor')
         #ax2.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax2.get_ylim()[0], ymax=ax2.get_ylim()[1] )
-        ax2.legend()
+        ax2.legend(fontsize=LegendFontSize)
         ax2.set_ylabel("°C")
         
         bottom_axis = ax2
         
         # Ax3: IQC Focus
         if iqcplot:
-            # restrict IQC data to the date ranges  in Temperature data.
+            # restrict IQC data to the date ranges in Temperature data.
             tempmin, tempmax = data.DateTime.min() , data.DateTime.max() + datetime.timedelta(hours=6) # add 6 hours, to ensure latest IQC run is included (since TC data is intermittent).
             if DEBUG(): print("Temp. Data min/max:\n", tempmin, tempmax  )
-            iqcplotdata = iqcdata[  iqcdata.DateTime.between(tempmin, tempmax, inclusive=True)  ].sort_values("DateTime")
+            iqcplotdata = iqcdata[  iqcdata.DateTime.between(tempmin, tempmax, inclusive="both")  ].sort_values("DateTime")
             if DEBUG(): print("IQC Data, DateTime:\n", iqcplotdata.DateTime)
             
-            ax3.plot(   iqcplotdata["DateTime"], iqcplotdata["IQCfoc"], label="Manual IQC Verify", marker="x", **ax3args   )
+            if PlotFocCorrection:
+                lines = []
+                lines.append( 
+                    ax3.plot(   iqcplotdata["DateTime"], iqcplotdata["IQCfoc"], label="Manual IQC Verify", marker="x", color="green", **ax3args   )
+                    )
+                # set y tick labels colors:
+                for tl in ax3.get_yticklabels():
+                    tl.set_color('green')       # tick labels - eg. 1, 2, 3 etc.
+                yt = ax3.yaxis.get_ticklines()   # not working??
+                for y in yt:
+                    y.set_color('green')
+                
+                if PlotFocMC:
+                    #ax3b = ax3.twinx()
+                    lines.append(
+                        ax3.plot(   iqcplotdata["DateTime"], iqcplotdata["IQCfocMC"], label="Abs. System Focus", marker="o", color="blue", **ax3args   )
+                        )
+                    #for tl in ax3b.get_yticklabels():
+                    #    tl.set_color('blue')       # tick labels - eg. 1, 2, 3 etc.
+                #end PlotFocMC
+            else:
+                if PlotFocMC:
+                    lines.append(
+                        ax.plot(   iqcplotdata["DateTime"], iqcplotdata["IQCfocMC"], label="Abs. System Focus", marker="o", color="blue", **ax3args   )
+                        )
+                    #for tl in ax3.get_yticklabels():
+                    #    tl.set_color('blue')       # tick labels - eg. 1, 2, 3 etc.
+            #end PlotFocCorrection
+            
             
             # shade acceptable IQC range
             # Create rectangle x coordinates
@@ -345,8 +382,11 @@ class ASML_CT:
             ax3.xaxis.grid(True, which='major')
             ax3.xaxis.grid(True, which='minor')
             #ax3.vlines( self.Dates , color="grey", alpha=0.05, ymin=ax3.get_ylim()[0], ymax=ax3.get_ylim()[1] )
-            ax3.legend()
-            ax3.set_ylabel("Focus Correction (nm)")
+            ax3.legend(fontsize=LegendFontSize)
+            #'''Make the legend, by de-listing the lines returned by ax.plot() & grabbing the legend label for each'''
+            ## ax.legend(  (tuple_of_line_objects),  (iterable_of_strings)  )
+            #ax3.legend(  tuple([x[0]  for x in lines]) ,   [x[0].get_label()  for x in lines]  , fontsize=LegendFontSize)
+            ax3.set_ylabel("System Focus (nm)")
             
             bottom_axis = ax3
         
@@ -391,8 +431,9 @@ class ASML_CT:
         
         if SaveFig: 
             TodayDate = time.strftime("%Y-%m-%d %H.%M.%S")           # Get current date and time as string
-            fig.savefig(str(prefix) + 'ASML CT Temps - ' + TodayDate + '.png')
-        
+            SaveFilePath = str(prefix) + 'ASML CT Temps - ' + TodayDate + '.png'
+            fig.savefig( SaveFilePath )
+            print("Figure saved to: " + SaveFilePath )
         return fig
     #end plot()
 
@@ -495,9 +536,12 @@ class ASML_CT:
         # Line, Col, length within the text file
         datepat = [1,54,10]  
         timepat = [1,71,5]
-        focpat =  [37,40,9]
+        focpat =  [37,40,9]   # IQC Focus Mean Correction:
+        focmc = [37,29,9]     # abs machine constant for focus
         
-        df = pd.DataFrame( columns=["DateTime","IQCfoc"] )
+        # IQC
+        
+        df = pd.DataFrame( columns=["DateTime","IQCfoc","IQCfocMC"] )
         for curfile in DataFiles:
             AllLines=[]
             line=True
@@ -516,12 +560,20 @@ class ASML_CT:
             TimeStr = AllLines[ timepat[0] ][ timepat[1]:timepat[1]+timepat[2] ]
             #print(TimeStr)
             dateobj = datetime.datetime.strptime( DateStr+" "+TimeStr, '%m/%d/%Y %H:%M')
-            IQCfoc = float( AllLines[ focpat[0] ][ focpat[1]:focpat[1]+focpat[2] ] )
+            try:
+                FileOk = True
+                IQCfoc = float( AllLines[ focpat[0] ][ focpat[1]:focpat[1]+focpat[2] ] )
+                MCfoc = float( AllLines[ focpat[0] ][ focmc[1]:focmc[1]+focmc[2] ] )
+            except:
+                print("*** Error while parsing IQC file: `" + curfile +"`\n\t File Skipped.")
+                #raise #raise the original exception again.
+                FileOk = False
             if DEBUG(): print(dateobj, "\t", IQCfoc)
             
             
             # add data to the end of DataFrame
-            df.loc[ len(df) ] = [dateobj, IQCfoc]
+            if FileOk: 
+                df.loc[ len(df) ] = [dateobj, IQCfoc, MCfoc]
             
         #end for(DataFiles)
         self.iqcdata = df
